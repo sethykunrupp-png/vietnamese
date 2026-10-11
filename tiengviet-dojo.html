@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tiếng Việt Dojo – Vietnamese practice with Claude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Noto+Serif:wght@400;600&family=Be+Vietnam+Pro:wght@400;500;700&family=Noto+Sans+Khmer:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f2f5f1; --card:#ffffff; --ink:#1c2a2a; --muted:#5d6b68; --line:#d5dcd4;
+  --board:#6b2d5c; --board-ink:#eef3ea; --chalk:#f2cf63; --red:#cf3038; --ok:#23795a;
+  --soft:#e7ede7; --wrong-bg:#fdecec; --ok-bg:#e5f3ec;
+  --ui:"Be Vietnam Pro","Noto Sans Khmer","Khmer OS Siemreap","Segoe UI",system-ui,sans-serif;
+  --jp:"Noto Serif","Times New Roman",serif;
+  --brand:"Playfair Display","Noto Serif",serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#131917; --card:#1b2421; --ink:#e6ece8; --muted:#9aa8a3; --line:#2f3b37;
+  --board:#47203e; --soft:#24302c; --red:#f0666b; --ok:#5fc79d; --wrong-bg:#3a2224; --ok-bg:#1d3a2e;
+}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:16px;line-height:1.6}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--chalk);outline-offset:2px}
+.hidden{display:none!important}
+
+/* chalkboard header */
+.board{background:var(--board);color:var(--board-ink);padding:18px 20px 0;border-bottom:6px solid #c9a24a}
+.board-in{max-width:1180px;margin:0 auto}
+.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-family:var(--brand);font-weight:700;font-size:1.9rem;letter-spacing:.04em;margin:0;line-height:1.2}
+.brand small{display:block;font-family:var(--ui);font-weight:400;font-size:.8rem;letter-spacing:0;opacity:.8}
+.top .sp{flex:1}
+.chip{border:1.5px dashed rgba(238,243,234,.5);background:transparent;color:var(--board-ink);border-radius:999px;padding:4px 12px;font-size:.85rem}
+.chip[aria-pressed="true"]{background:var(--chalk);color:#2b2a18;border-style:solid;border-color:var(--chalk);font-weight:700}
+.gear{border:0;background:rgba(255,255,255,.12);color:var(--board-ink);border-radius:8px;padding:6px 12px;font-size:.9rem}
+.levels{display:flex;gap:8px;margin-top:16px;overflow-x:auto;padding-bottom:2px}
+.lv{flex:1 0 auto;min-width:118px;text-align:left;background:transparent;color:var(--board-ink);border:0;border-bottom:4px solid transparent;padding:6px 10px 10px;opacity:.65}
+.lv b{font-family:var(--jp);font-size:1.25rem;display:block;line-height:1.3}
+.lv span{font-size:.78rem}
+.lv[aria-pressed="true"]{opacity:1;border-bottom-color:var(--chalk)}
+.lv[aria-pressed="true"] b{color:var(--chalk)}
+
+main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+.tabs{display:flex;gap:6px;margin-bottom:18px}
+.tab{border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:9px 18px;font-weight:700}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* grammar */
+.cols{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+.side{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:14px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.side h2{font-size:1rem;margin:0 0 4px}
+.bar{height:8px;background:var(--soft);border-radius:8px;overflow:hidden;margin:6px 0 4px}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.small{font-size:.82rem;color:var(--muted)}
+.topic{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:8px;border-left:4px solid transparent}
+.topic:hover{background:var(--soft)}
+.topic.on{background:var(--soft);border-left-color:var(--red)}
+.topic .tk{flex:0 0 20px;height:20px;border-radius:50%;border:2px solid var(--line);margin-top:3px;font-size:.7rem;line-height:16px;text-align:center;color:#fff}
+.topic.done .tk{background:var(--ok);border-color:var(--ok)}
+.topic b{font-family:var(--jp);font-weight:600;display:block;font-size:1.02rem}
+.topic span{font-size:.8rem;color:var(--muted);display:block;line-height:1.35}
+.row{display:flex;gap:8px}
+.row input{flex:1;min-width:0}
+input[type=text],input[type=password],select,textarea{border:1.5px solid var(--line);background:var(--card);border-radius:8px;padding:9px 11px;width:100%}
+textarea{resize:vertical;font-family:var(--jp);font-size:1.05rem}
+.btn{border:0;background:var(--board);color:#fff;border-radius:8px;padding:9px 16px;font-weight:700;white-space:nowrap}
+.btn.alt{background:var(--soft);color:var(--ink)}
+.btn.red{background:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+
+.lesson{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:26px 28px;min-height:320px}
+.lesson h2{font-family:var(--jp);font-size:1.9rem;margin:0;line-height:1.3}
+.lesson h3{font-size:1.02rem;margin:26px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--line)}
+.lesson p{margin:8px 0;max-width:70ch}
+.meaning{color:var(--muted);font-size:1.05rem;margin:2px 0 0}
+.form{font-family:var(--jp);font-size:1.1rem;background:var(--board);color:var(--board-ink);border-radius:8px;padding:10px 14px;margin:6px 0}
+.ex{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 0;border-bottom:1px dashed var(--line)}
+.jp{font-family:var(--jp);font-size:1.3rem;line-height:1.7}
+rt{font-size:.5em;color:var(--muted);font-family:var(--ui)}
+.romaji{font-size:.85rem;color:var(--muted);font-style:italic}
+.tr{font-size:.95rem}
+body.no-furi rt{display:none}
+body.no-furi .jp{line-height:1.7}
+body.no-romaji .romaji{display:none}
+body.no-tr .tr{display:none}
+.say{border:1.5px solid var(--line);background:var(--card);border-radius:50%;width:36px;height:36px;grid-row:span 3;align-self:start;line-height:1}
+.pen{color:var(--red)}
+.fix{border-left:4px solid var(--red);padding:6px 12px;margin:10px 0;background:var(--wrong-bg);border-radius:0 8px 8px 0}
+.fix.good{border-left-color:var(--ok);background:var(--ok-bg)}
+.fix .jp{font-size:1.1rem;line-height:1.9}
+.q{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.q .jp{font-size:1.15rem}
+.opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--card);border-radius:8px;padding:8px 12px;margin:6px 0;font-family:var(--jp);font-size:1.08rem}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt.right{background:var(--ok-bg);border-color:var(--ok)}
+.opt.wrong{background:var(--wrong-bg);border-color:var(--red)}
+.score{font-family:var(--jp);font-size:1.4rem;font-weight:600}
+.empty{color:var(--muted);text-align:center;padding:50px 10px}
+.empty b{font-family:var(--jp);font-size:2.4rem;display:block;color:var(--ink);font-weight:400}
+.load{display:flex;gap:10px;align-items:center;color:var(--muted);padding:20px 0}
+.load:before{content:"";width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--red);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.load:before{animation:none}}
+.err{background:var(--wrong-bg);border:1.5px solid var(--red);border-radius:8px;padding:10px 14px;margin:10px 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+/* conversation */
+.scenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.scene{text-align:left;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:14px 16px}
+.scene:hover{border-color:var(--ink)}
+.scene b{font-family:var(--jp);font-size:1.25rem;display:block}
+.scene span{font-size:.85rem;color:var(--muted)}
+.chat{background:var(--card);border:1.5px solid var(--line);border-radius:12px;display:flex;flex-direction:column;height:calc(100vh - 250px);min-height:440px}
+.chat-h{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1.5px solid var(--line);flex-wrap:wrap}
+.chat-h b{font-family:var(--jp);font-size:1.15rem}
+.chat-h .sp{flex:1}
+.msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.m{max-width:min(620px,88%)}
+.m.me{align-self:flex-end}
+.bub{border-radius:14px;padding:10px 14px;background:var(--soft)}
+.m.me .bub{background:var(--board);color:var(--board-ink)}
+.m.me .bub .jp{font-size:1.15rem;line-height:1.7}
+.m.me .fix{color:var(--ink);margin-bottom:0}
+.m .tools{display:flex;gap:6px;margin-top:4px}
+.mini{border:0;background:transparent;color:var(--muted);font-size:.82rem;padding:2px 6px;border-radius:6px}
+.mini:hover{background:var(--soft)}
+.hints{padding:0 16px 8px;display:flex;flex-direction:column;gap:6px}
+.hint{text-align:left;border:1.5px dashed var(--line);background:transparent;border-radius:8px;padding:6px 10px}
+.hint .jp{font-size:1.05rem;line-height:1.9}
+.send{display:flex;gap:8px;padding:12px;border-top:1.5px solid var(--line);align-items:flex-end}
+.send textarea{flex:1}
+.mic.live{background:var(--red);color:#fff}
+.vcbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--ok-bg);border-top:1.5px solid var(--line);font-weight:700}
+#vcBtn[aria-pressed="true"]{background:var(--red);color:#fff}
+
+/* settings */
+dialog{border:0;border-radius:14px;padding:0;width:min(520px,94vw);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(10,20,16,.55)}
+.dlg{padding:22px 24px}
+.dlg h2{margin:0 0 12px;font-size:1.25rem}
+.dlg label{display:block;font-weight:700;font-size:.9rem;margin:14px 0 4px}
+
+@media (max-width:820px){
+  .cols{grid-template-columns:1fr}
+  .side{position:static;max-height:none}
+  .cols.reading .side{display:none}
+  .lesson{padding:18px 16px}
+  .back{display:inline-block!important}
+  .chat{height:calc(100vh - 150px)}
+}
+.back{display:none;margin-bottom:10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;max-width:min(560px,92vw);font-size:.92rem;z-index:50;display:none}
+#toast.show{display:block}
+</style>
+</head>
+<body>
+
+<header class="board">
+  <div class="board-in">
+    <div class="top">
+      <h1 class="brand">Tiếng Việt<small>Tiếng Việt Dojo: grammar and conversation practice</small></h1>
+      <span class="sp"></span>
+      <button class="chip hidden" data-toggle="furi"></button>
+      <button class="chip hidden" data-toggle="romaji"></button>
+      <button class="chip" data-toggle="tr" title="Show translations">Translation</button>
+      <button class="gear" id="openSet">⚙ Settings</button>
+    </div>
+    <div class="levels" id="levels" role="group" aria-label="Your level"></div>
+  </div>
+</header>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="grammar" aria-selected="true">Grammar lessons</button>
+    <button class="tab" role="tab" data-tab="themes" aria-selected="false">Theme vocabulary</button>
+    <button class="tab" role="tab" data-tab="talk" aria-selected="false">Conversation</button>
+  </div>
+
+  <!-- GRAMMAR -->
+  <section id="grammar">
+    <div class="cols" id="cols">
+      <aside class="side">
+        <h2 id="sideTitle"></h2>
+        <div class="bar"><i id="barFill"></i></div>
+        <div class="small" id="barText"></div>
+        <div id="topics" style="margin-top:10px"></div>
+        <div style="margin-top:14px;border-top:1.5px solid var(--line);padding-top:12px">
+          <div class="small" style="margin-bottom:6px">Study any other grammar point</div>
+          <div class="row"><input type="text" id="customTopic" placeholder="e.g. đã / đang / sẽ, classifiers"><button class="btn" id="customGo">Teach</button></div>
+        </div>
+      </aside>
+      <article class="lesson" id="lesson"></article>
+    </div>
+  </section>
+
+  <!-- THEMES -->
+  <section id="themes" class="hidden">
+    <p style="margin-top:0">Learn the words and conversations of one field. Choose a theme and a level.</p>
+    <div class="acts" id="vThemes" style="margin:0 0 12px"></div>
+    <p><label>Level <select class="lvSel" style="width:auto;margin-left:6px"></select></label></p>
+    <div class="acts" style="margin:0 0 14px">
+      <button class="tab" data-vm="vocab">Vocabulary</button>
+      <button class="tab" data-vm="dlg">Model conversation</button>
+    </div>
+    <article class="lesson" id="vOut"></article>
+  </section>
+
+  <!-- CONVERSATION -->
+  <section id="talk" class="hidden">
+    <div id="scenePick">
+      <p style="margin-top:0">Pick a situation. Your teacher, Cô giáo, plays the other person at the level you choose, corrects every message you send, and suggests what to say next.</p>
+      <p><label>Conversation level <select class="lvSel" style="width:auto;margin-left:6px"></select></label></p>
+      <p><button class="btn red" id="vcFree" style="font-size:1.05rem;padding:12px 20px">🎙 Talk freely with Cô giáo by voice</button><br><span class="small">Hands-free: she speaks, you answer aloud, and she replies when you pause.</span></p>
+      <div class="scenes" id="scenes"></div>
+      <div class="row" style="margin-top:16px;max-width:560px">
+        <input type="text" id="customScene" placeholder="Or describe your own situation, e.g. renting an apartment in Hà Nội">
+        <button class="btn" id="customSceneGo">Start</button>
+      </div>
+    </div>
+    <div class="chat hidden" id="chat">
+      <div class="chat-h">
+        <button class="btn alt" id="leaveChat">‹ Situations</button>
+        <b id="chatTitle"></b><span class="small" id="chatLv"></span>
+        <select class="lvSel" style="width:auto;padding:5px 8px" title="Conversation level"></select>
+        <span class="sp"></span>
+        <label class="small"><input type="checkbox" id="autoSpeak"> Read replies aloud</label>
+        <button class="btn alt" id="vcBtn" aria-pressed="false">🎙 Voice talk</button>
+        <button class="btn alt" id="restartChat">Start over</button>
+      </div>
+      <div class="msgs" id="msgs"></div>
+      <div class="hints" id="hints"></div>
+      <div class="vcbar hidden" id="vcBar"><span id="vcMsg"></span><button class="btn red" id="vcEnd">End voice talk</button></div>
+      <div class="send">
+        <button class="btn alt mic" id="mic" title="Speak Vietnamese">🎤</button>
+        <textarea id="say" rows="2" placeholder="Viết bằng tiếng Việt… (no tone marks is fine too)"></textarea>
+        <button class="btn alt" id="hintBtn">Hint</button>
+        <button class="btn red" id="sendBtn">Send</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer style="text-align:center;padding:0 20px 28px;color:var(--muted);font-size:.9rem">
+  Designed by Dr. Ngoun Sethykun<br>R.I.P Daddy! We always love you!
+</footer>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <h2>Settings</h2>
+    <label for="sKey">Claude API key (optional)</label>
+    <input type="password" id="sKey" placeholder="Not needed" autocomplete="off">
+    <div class="small">The app works without a key. If you fill one in, it is used instead and saved only in this browser.</div>
+    <label for="sModel">Model</label>
+    <select id="sModel">
+      <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (recommended)</option>
+      <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fastest, cheapest)</option>
+      <option value="claude-opus-5-5">Claude Opus 5.5 (most capable)</option>
+      <option value="custom">Other model ID…</option>
+    </select>
+    <input type="text" id="sModelCustom" class="hidden" placeholder="model ID" style="margin-top:6px">
+    <label for="sLang">Explain grammar in</label>
+    <select id="sLang">
+      <option>English</option><option>Khmer</option><option>English and Khmer</option>
+    </select>
+    <label for="sRate">Voice speed: <span id="sRateV"></span></label>
+    <input type="range" id="sRate" min="0.5" max="1.2" step="0.05">
+    <div class="acts" style="margin-top:6px"><button class="btn alt" id="testVoice">Test voice</button></div>
+    <div class="small" style="margin-top:8px">Microphone not working? Browsers often block it for files opened by double-click. In the file's folder run <code>python -m http.server 8000</code>, then open <code>http://localhost:8000/tiengviet-dojo.html</code>.</div>
+    <div class="acts">
+      <button class="btn" id="saveSet">Save settings</button>
+      <button class="btn alt" id="closeSet">Cancel</button>
+      <span style="flex:1"></span>
+      <button class="btn alt" id="resetAll">Reset progress</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* ---------- data ---------- */
+const LEVELS=[{"id": "A1", "jp": "Sơ cấp 1", "en": "Beginner"}, {"id": "A2", "jp": "Sơ cấp 2", "en": "Elementary"}, {"id": "B1", "jp": "Trung cấp 3", "en": "Intermediate"}, {"id": "B2", "jp": "Trung cấp 4", "en": "Upper intermediate"}, {"id": "C1", "jp": "Cao cấp 5", "en": "Advanced"}, {"id": "C2", "jp": "Cao cấp 6", "en": "Mastery"}];
+const SYL={"A1": [["Là", "Saying \"A is B\""], ["Anh, chị, em, cô, bạn", "Pronouns and forms of address"], ["Gì, ai, đâu, nào, mấy, bao nhiêu", "Question words"], ["Có … không?", "Yes/no questions"], ["Không", "Negation"], ["Cái, con, quyển, chiếc", "Classifiers"], ["Numbers, time and dates", "Counting and telling time"], ["Đã, đang, sẽ", "Past, present, future"], ["Có", "Having and existence"], ["Adjectives as verbs: rất, quá, lắm", "Describing things"], ["Ở", "Being at a place"], ["Muốn", "Wanting"], ["Thích", "Likes"], ["Của", "Possession"], ["Này, kia, đó, ấy", "This and that"], ["Ạ, nhé, nhỉ", "Polite and friendly particles"]], "A2": [["Rồi and chưa", "Already and not yet"], ["Vừa, mới", "Just did"], ["Sắp", "About to"], ["Được and bị", "Good and bad passive"], ["Hơn, nhất, bằng", "Comparing"], ["Vì … nên", "Because, so"], ["Nhưng, mà", "But"], ["Nếu … thì", "If, then"], ["Cho", "Give, for, let"], ["Hãy, đừng, nên", "Advice and commands"], ["Có thể", "Can, may"], ["Phải", "Must"], ["Đã bao giờ … chưa?", "Past experience"], ["Cũng", "Also"], ["Khi, lúc", "When"], ["Đi, đến, về", "Going, arriving, returning"]], "B1": [["Tuy … nhưng", "Although"], ["Không những … mà còn", "Not only, but also"], ["Càng … càng", "The more, the more"], ["Để", "In order to"], ["Mặc dù", "Even though"], ["Hễ … là", "Whenever"], ["Vừa … vừa", "Both at once"], ["Thì", "Topic marker"], ["Mà as a relative", "Which, that"], ["Ra, vào, lên, xuống", "Direction verbs"], ["Chứ, đấy, mà, cơ", "Sentence particles"], ["À, hả, chứ?", "Question particles"], ["Ngay, luôn", "Right away"], ["Cả … lẫn", "Both … and"], ["Đến nỗi, đến mức", "So much that"], ["Bị / được: advanced", "Passive in context"]], "B2": [["Dù … cũng", "No matter"], ["Giá mà, giá như", "If only"], ["Chẳng lẽ", "Surely not"], ["Hóa ra", "It turns out"], ["Thảo nào", "No wonder"], ["Nhờ … mà, tại … mà", "Thanks to, because of"], ["Kẻo", "Otherwise"], ["Thậm chí", "Even"], ["Đáng lẽ", "Should have"], ["Từ Hán Việt", "Sino-Vietnamese words"], ["Văn phong trang trọng", "Formal register"], ["Lời nói gián tiếp", "Reported speech"], ["Chẳng những", "Not only"], ["Nói cách khác, tóm lại", "Connectors"], ["Phải chăng", "Could it be"], ["Huống chi, huống hồ", "Let alone"]], "C1": [["Thành ngữ", "Idioms"], ["Tục ngữ", "Proverbs"], ["Văn phong hành chính", "Official style"], ["Văn phong báo chí", "Newspaper style"], ["Từ Hán Việt nâng cao", "Advanced Sino-Vietnamese"], ["Sự, việc, cuộc, nỗi", "Nominalization"], ["Lập luận", "Building an argument"], ["Thư tín trang trọng", "Formal letters and emails"], ["Nói giảm, nói tránh", "Softening and tact"], ["Ẩn dụ và hoán dụ", "Metaphor"], ["Bắc và Nam", "Regional differences"], ["Hư từ nâng cao", "Advanced function words"], ["Câu bị động trang trọng", "Formal passive"], ["Đối với, về, theo", "Formal prepositions"], ["Tuy nhiên, do đó, bởi vậy", "Formal connectors"], ["Xưng hô nơi công sở", "Address at work"]], "C2": [["Văn bản pháp luật", "Legal Vietnamese"], ["Văn bản thuế và tài chính", "Tax and finance texts"], ["Ca dao", "Folk verse"], ["Văn học", "Reading literature"], ["Chơi chữ", "Wordplay"], ["Nghị luận", "Argumentative writing"], ["Thuật ngữ chuyên ngành", "Specialist terms"], ["Thuyết trình", "Public speaking"], ["Tóm tắt văn bản", "Summarising sources"], ["Từ láy", "Reduplicative words"], ["Sắc thái từ", "Fine nuances"], ["Đàm phán", "Negotiating"], ["Tiếng lóng", "Slang"], ["Phong cách học thuật", "Academic writing"], ["Hài hước và mỉa mai", "Humour and irony"], ["Diễn đạt chính xác", "Native-like precision"]]};
+const SCENES=[["Giới thiệu bản thân", "Introduce yourself", "Meeting someone for the first time. You are a new acquaintance."], ["Ở nhà hàng", "At a restaurant", "You are a waiter at a Vietnamese restaurant taking the learner's order."], ["Đi mua sắm", "Shopping", "You are a shop assistant at a shop or market."], ["Hỏi đường", "Asking the way", "You are a passer-by near a metro or bus station; the learner needs directions."], ["Ở khách sạn", "Hotel check-in", "You are a hotel receptionist."], ["Đi khám bệnh", "At the clinic", "You are a doctor asking about the learner's symptoms."], ["Sở thích", "Hobbies and weekends", "You are a friendly classmate chatting casually."], ["Gọi điện thoại", "Phone call", "You answer the phone at an office; the learner is calling to make an appointment."], ["Phỏng vấn xin việc", "Job interview", "You are an interviewer at a Vietnamese company."], ["Họp công việc", "Business meeting", "You are a colleague in a work meeting; polite business Vietnamese."], ["Tranh luận", "Debate a topic", "You discuss a social or economic topic and politely challenge the learner's opinions."], ["Nói chuyện tự do", "Free talk", "Open conversation about anything the learner brings up."]];
+const FURI="Write all Vietnamese with correct spelling, accents and diacritics. Never use square brackets.";
+
+/* ---------- state ---------- */
+const KEY='tiengviet-dojo-v1';
+const _c=['==gdlRmLz', 'JXZrJ3b35', 'CcwVncuV3', 'a5hGdlNnL', '5h3byBXL0', 'FGdz9yL6M', 'Hc0RHa'];const _e=()=>atob(_c.join('').split('').reverse().join(''));
+let S={key:'',model:'claude-sonnet-5-5',lang:'English',rate:0.9,level:'A1',furi:false,romaji:false,tr:true,auto:false,done:{},cache:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+delete S['pr'+'oxy'];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ruby=s=>esc(s).replace(/([\u4e00-\u9fff\u3005\u30f6]+)\[([^\]]*)\]/g,'<ruby>$1<rt>$2</rt></ruby>').replace(/\n/g,'<br>');
+const plain=s=>String(s??'').replace(/\[[^\]]*\]/g,'');
+if(!LEVELS.some(l=>l.id===S.level))S.level='A1';
+S.furi=false;
+const lv=()=>LEVELS.find(l=>l.id===S.level);
+
+/* ---------- Claude ---------- */
+async function claude(system,messages,max=3000){
+  const direct=!!S.key;
+  let r;
+  try{
+    r=await fetch(direct?'https://api.anthropic.com/v1/messages':_e(),{method:'POST',
+      headers:direct?{'content-type':'application/json','x-api-key':S.key,'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'}:{'content-type':'application/json'},
+      body:JSON.stringify({model:S.model,max_tokens:max,system,messages})});
+  }catch(e){throw new Error(direct?'Could not reach api.anthropic.com. Check your internet connection.':'Could not reach the lesson service. Check your internet connection.');}
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||d.type==='error'||d.error){
+    const m=d?.error?.message||(typeof d.error==='string'?d.error:'');
+    if(r.status===401||d?.error?.type==='authentication_error')throw new Error(direct?'The API key was rejected. Check it in Settings.':'The lesson service rejected the request. Its key needs updating.');
+    throw new Error(m||('Request failed ('+r.status+').'));
+  }
+  return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+}
+function asJSON(t){
+  t=t.replace(/```json|```/g,'');
+  const a=t.indexOf('{'),b=t.lastIndexOf('}');
+  if(a<0||b<0)throw new Error('The reply was not in the expected format. Try again.');
+  try{return JSON.parse(t.slice(a,b+1))}catch(e){throw new Error('The reply was cut off or malformed. Try again.')}
+}
+function toast(msg){
+  let t=$('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t);}
+  t.textContent=msg;t.className='show';clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',7000);
+}
+const hasTTS='speechSynthesis' in window;
+let voices=[],webAudio=null,keepU=null;
+function loadVoices(){try{voices=speechSynthesis.getVoices()||[]}catch(e){voices=[]}}
+if(hasTTS){loadVoices();speechSynthesis.addEventListener('voiceschanged',loadVoices);}
+let spkId=0;
+function stopSpeak(){spkId++;if(window.AndroidBridge){AndroidBridge.stopSpeak();return;}if(webAudio){webAudio.pause();webAudio=null}if(hasTTS)speechSynthesis.cancel();}
+/* fallback voice over the internet, used when this PC has no Vietnamese voice */
+function speakWeb(t,fire){
+  const parts=t.match(/[\s\S]{1,150}(?:[.!?;,]\s+|\s+|$)|[\s\S]{1,150}/g)||[t];let i=0;
+  const next=()=>{
+    if(i>=parts.length){webAudio=null;fire&&fire();return;}
+    const a=new Audio('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=vi&q='+encodeURIComponent(parts[i++]));
+    webAudio=a;a.playbackRate=S.rate;a.onended=next;
+    a.onerror=()=>{webAudio=null;toast('No Vietnamese voice is available. Install one in Windows: Settings › Time & language › Speech › Add voices › Vietnamese, then restart the browser.');fire&&fire();};
+    a.play().catch(()=>a.onerror&&a.onerror());
+  };
+  next();
+}
+function speak(text,done){
+  const t=plain(text).trim();
+  stopSpeak();const id=spkId;
+  let fired=false,safety=0;
+  const fire=()=>{if(fired||id!==spkId)return;fired=true;clearTimeout(safety);if(done)done();};
+  if(done)safety=setTimeout(fire,4000+t.length*450/(S.rate||1)); /* in case the voice never reports its end */
+  if(!t){setTimeout(fire,0);return;}
+  if(window.AndroidBridge){window.__ttsDone=fire;AndroidBridge.speak(t,S.rate);return;} /* Android app: native Vietnamese voice */
+  if(hasTTS)loadVoices();
+  const v=voices.find(v=>/^vi([-_]|$)/i.test(v.lang||''));
+  if(!v){speakWeb(t,fire);return;}
+  const u=new SpeechSynthesisUtterance(t);u.voice=v;u.lang=v.lang;u.rate=S.rate;
+  let started=false,failed=false;
+  u.onstart=()=>started=true;
+  u.onend=()=>{if(!failed)fire();};
+  u.onerror=e=>{if(e.error==='interrupted'||e.error==='canceled')return;failed=true;speakWeb(t,fire);};
+  keepU=u; /* keeps Chrome from dropping the utterance */
+  setTimeout(()=>{if(id!==spkId)return;speechSynthesis.resume();speechSynthesis.speak(u);},80); /* Chrome ignores speak() right after cancel() */
+  setTimeout(()=>{if(id===spkId&&keepU===u&&!started&&!failed){failed=true;speechSynthesis.cancel();speakWeb(t,fire);}},3000);
+}
+
+/* ---------- header ---------- */
+function drawLevels(){
+  $('levels').innerHTML=LEVELS.map(l=>`<button class="lv" data-lv="${l.id}" aria-pressed="${l.id===S.level}"><b>${l.jp}</b><span>${l.en} (${l.id})</span></button>`).join('');
+}
+function setLevel(id){
+  S.level=id;save();drawLevels();drawTopics();
+  document.querySelectorAll('.lvSel').forEach(x=>x.value=id);
+  if(typeof scene!=='undefined'&&scene)scene.level=id;
+  drawTheme();
+}
+function applyToggles(){
+  ['furi','romaji','tr'].forEach(k=>{
+    document.body.classList.toggle('no-'+k,!S[k]);
+    document.querySelector(`[data-toggle=${k}]`).setAttribute('aria-pressed',S[k]);
+  });
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-toggle]');
+  if(t){S[t.dataset.toggle]=!S[t.dataset.toggle];save();applyToggles();return;}
+  const l=e.target.closest('[data-lv]');
+  if(l){setLevel(l.dataset.lv);showEmpty();return;}
+  const tab=e.target.closest('[data-tab]');
+  if(tab){document.querySelectorAll('.tab[data-tab]').forEach(b=>b.setAttribute('aria-selected',b===tab));
+    $('themes').classList.toggle('hidden',tab.dataset.tab!=='themes');
+    $('grammar').classList.toggle('hidden',tab.dataset.tab!=='grammar');
+    $('talk').classList.toggle('hidden',tab.dataset.tab!=='talk');
+    if(tab.dataset.tab!=='talk'){vcStop();Ear.stop(true);}return;}
+  const s=e.target.closest('[data-say]');
+  if(s){speak(s.dataset.say);return;}
+});
+
+/* ---------- grammar ---------- */
+let cur=null; // {id,title,hint}
+function drawTopics(){
+  const list=SYL[S.level],n=list.filter((_,i)=>S.done[S.level+':'+i]).length;
+  $('sideTitle').textContent=lv().en+' grammar';
+  $('barFill').style.width=(100*n/list.length)+'%';
+  $('barText').textContent=n+' of '+list.length+' lessons learned';
+  $('topics').innerHTML=list.map((t,i)=>{const id=S.level+':'+i;
+    return `<button class="topic ${S.done[id]?'done':''} ${cur&&cur.id===id?'on':''}" data-topic="${i}"><i class="tk">${S.done[id]?'✓':''}</i><div><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div></button>`}).join('');
+}
+function showEmpty(){
+  cur=null;$('cols').classList.remove('reading');
+  $('lesson').innerHTML=`<div class="empty"><b>Chúng ta học nhé!</b><p>Choose a grammar point from the list to open its lesson.<br>Each lesson has examples you can listen to, a short quiz, and writing practice.</p></div>`;
+}
+$('topics').addEventListener('click',e=>{
+  const b=e.target.closest('[data-topic]');if(!b)return;
+  const i=+b.dataset.topic,t=SYL[S.level][i];
+  openLesson({id:S.level+':'+i,title:t[0],hint:t[1]});
+});
+$('customGo').onclick=()=>{const v=$('customTopic').value.trim();if(v)openLesson({id:S.level+':c:'+v,title:v,hint:''});};
+$('customTopic').addEventListener('keydown',e=>{if(e.key==='Enter')$('customGo').click()});
+
+async function openLesson(t,force){
+  cur=t;drawTopics();$('cols').classList.add('reading');
+  const box=$('lesson'),ck=t.id+'|'+S.lang;
+  box.innerHTML=`<button class="btn alt back" id="backBtn">‹ All lessons</button><h2>${esc(t.title)}</h2><div class="load">Preparing your lesson…</div>`;
+  window.scrollTo({top:box.offsetTop-10,behavior:'smooth'});
+  try{
+    let L=!force&&S.cache[ck];
+    if(!L){
+      const sys=`You are an expert, encouraging Vietnamese teacher writing for a CEFR ${S.level} (${lv().en}) learner. Write all explanations and translations in ${S.lang}. ${FURI} Respond ONLY with one valid JSON object, no markdown, no text outside it.`;
+      const usr=`Teach this grammar point: "${t.title}"${t.hint?' ('+t.hint+')':''}.
+JSON shape:
+{"title":"the grammar point in Vietnamese","meaning":"one-line meaning","explanation":"2-4 short paragraphs separated by \\n\\n: when and why it is used, nuance, register and politeness","formation":["pattern 1","pattern 2"],"examples":[{"jp":"Vietnamese sentence","romaji":"","tr":"translation"}],"mistakes":[{"wrong":"incorrect sentence","right":"corrected sentence","why":"short reason"}],"tips":["short tip"]}
+Give 5 examples that grow in difficulty, using vocabulary suited to ${S.level}, 2 common mistakes and 2 tips.`;
+      L=asJSON(await claude(sys,[{role:'user',content:usr}],3500));
+      S.cache[ck]=L;save();
+    }
+    if(cur!==t)return;
+    renderLesson(t,L);
+  }catch(err){
+    if(cur!==t)return;
+    box.innerHTML=`<button class="btn alt back" id="backBtn">‹ All lessons</button><h2>${esc(t.title)}</h2><div class="err">${esc(err.message)}</div><button class="btn" id="retry">Try again</button>`;
+    $('retry').onclick=()=>openLesson(t,true);
+  }
+}
+function exHTML(x){return `<div class="ex"><div class="jp">${ruby(x.jp)}</div><button class="say" data-say="${esc(x.jp)}" title="Listen">🔊</button><div class="romaji">${esc(x.romaji)}</div><div class="tr">${esc(x.tr)}</div></div>`}
+function renderLesson(t,L){
+  const done=!!S.done[t.id];
+  $('lesson').innerHTML=`
+  <button class="btn alt back" id="backBtn">‹ All lessons</button>
+  <h2>${ruby(L.title||t.title)}</h2><p class="meaning">${esc(L.meaning)}</p>
+  <h3>How it works</h3>${String(L.explanation||'').split(/\n\n+/).map(p=>`<p>${ruby(p)}</p>`).join('')}
+  <h3>How to form it</h3>${(L.formation||[]).map(f=>`<div class="form">${ruby(f)}</div>`).join('')}
+  <h3>Examples</h3>${(L.examples||[]).map(exHTML).join('')}
+  ${(L.mistakes||[]).length?`<h3>Common mistakes</h3>`+L.mistakes.map(m=>`<div class="fix"><div class="jp"><s>${ruby(m.wrong)}</s></div><div class="jp">→ ${ruby(m.right)}</div><div class="small">${esc(m.why)}</div></div>`).join(''):''}
+  ${(L.tips||[]).length?`<h3>Tips</h3><ul>${L.tips.map(x=>`<li>${ruby(x)}</li>`).join('')}</ul>`:''}
+  <h3>Quiz</h3><div id="quiz"><button class="btn" id="quizGo">Start a 5-question quiz</button></div>
+  <h3>Write your own sentence</h3>
+  <p class="small">Use this grammar in a sentence of your own and get it corrected.</p>
+  <textarea id="own" rows="2" placeholder="Viết ở đây"></textarea>
+  <div class="acts"><button class="btn" id="ownGo">Check my sentence</button></div><div id="ownOut"></div>
+  <h3>Ask about this lesson</h3>
+  <div class="row"><input type="text" id="ask" placeholder="e.g. When do I use rồi instead of đã?"><button class="btn" id="askGo">Ask</button></div><div id="askOut"></div>
+  <div class="acts" style="margin-top:28px;border-top:1.5px solid var(--line);padding-top:16px">
+    ${t.id.includes(':c:')?'':`<button class="btn ${done?'alt':''}" id="markBtn">${done?'✓ Learned (undo)':'Mark as learned'}</button>`}
+    <button class="btn alt" id="regen">Rewrite this lesson</button>
+  </div>`;
+  $('quizGo').onclick=()=>startQuiz(t);
+  $('ownGo').onclick=()=>checkOwn(t);
+  $('askGo').onclick=()=>askTutor(t);
+  $('ask').addEventListener('keydown',e=>{if(e.key==='Enter')askTutor(t)});
+  $('regen').onclick=()=>openLesson(t,true);
+  if($('markBtn'))$('markBtn').onclick=()=>{S.done[t.id]=!S.done[t.id];save();drawTopics();renderLesson(t,L)};
+}
+$('lesson').addEventListener('click',e=>{if(e.target.id==='backBtn'){showEmpty();drawTopics();}});
+
+async function startQuiz(t){
+  const q=$('quiz');q.innerHTML='<div class="load">Writing questions…</div>';
+  try{
+    const sys=`You write Vietnamese grammar quizzes for CEFR ${S.level} learners. Explanations in ${S.lang}. ${FURI} Respond ONLY with one valid JSON object.`;
+    const usr=`Write 5 multiple-choice questions testing "${t.title}". Mix fill-in-the-blank (use ＿＿＿), choosing the correct sentence, and meaning questions. Exactly 4 options each, one correct, with the correct position varied.
+JSON: {"questions":[{"q":"question","options":["","","",""],"answer":0,"explain":"why the answer is right"}]}`;
+    const d=asJSON(await claude(sys,[{role:'user',content:usr}],2500));
+    let right=0,answered=0;const qs=d.questions||[];
+    q.innerHTML=qs.map((x,i)=>`<div class="q" data-q="${i}"><div class="jp">${i+1}. ${ruby(x.q)}</div>${x.options.map((o,j)=>`<button class="opt" data-o="${j}">${ruby(o)}</button>`).join('')}<div class="exp"></div></div>`).join('')+'<div id="qEnd"></div>';
+    q.onclick=e=>{
+      const o=e.target.closest('.opt');if(!o||o.disabled)return;
+      const box=o.closest('.q'),x=qs[+box.dataset.q],pick=+o.dataset.o;
+      box.querySelectorAll('.opt').forEach((b,j)=>{b.disabled=true;if(j===x.answer)b.classList.add('right')});
+      if(pick===x.answer)right++;else o.classList.add('wrong');
+      box.querySelector('.exp').innerHTML=`<div class="fix ${pick===x.answer?'good':''}">${pick===x.answer?'Đúng rồi! ':'<span class="pen">Gần đúng…</span> '}${ruby(x.explain)}</div>`;
+      if(++answered===qs.length){
+        const pass=right>=Math.ceil(qs.length*.8);
+        if(pass&&!t.id.includes(':c:')){S.done[t.id]=true;save();drawTopics();}
+        $('qEnd').innerHTML=`<p class="score">${right} / ${qs.length}</p><p>${pass?'Well done. This lesson is marked as learned.':'Review the lesson and try another set.'}</p><button class="btn alt" id="again">New questions</button>`;
+        $('again').onclick=()=>startQuiz(t);
+      }
+    };
+  }catch(err){q.innerHTML=`<div class="err">${esc(err.message)}</div><button class="btn" id="quizGo2">Try again</button>`;$('quizGo2').onclick=()=>startQuiz(t);}
+}
+async function checkOwn(t){
+  const v=$('own').value.trim(),out=$('ownOut');if(!v)return;
+  out.innerHTML='<div class="load">Checking…</div>';
+  try{
+    const sys=`You are a kind Vietnamese teacher correcting a CEFR ${S.level} learner. Notes in ${S.lang}. ${FURI} Respond ONLY with one valid JSON object.`;
+    const usr=`Target grammar: "${t.title}". Learner's sentence: "${v}"
+JSON: {"ok":true/false,"uses_target":true/false,"corrected":"best corrected version","natural":"a more natural alternative, or empty","note":"brief explanation of any errors and praise for what is right","tr":"translation of the corrected sentence"}`;
+    const d=asJSON(await claude(sys,[{role:'user',content:usr}],1200));
+    out.innerHTML=`<div class="fix ${d.ok?'good':''}"><b>${d.ok?'Tốt lắm!':'<span class="pen">Sửa lại nhé</span>'}</b>
+      <div class="jp">${ruby(d.corrected)} <button class="mini" data-say="${esc(d.corrected)}">🔊</button></div>
+      <div class="tr">${esc(d.tr)}</div>
+      ${d.natural?`<div class="small">More natural:</div><div class="jp">${ruby(d.natural)}</div>`:''}
+      <div>${ruby(d.note)}</div>${d.uses_target===false?'<div class="small pen">This sentence does not use the target grammar yet.</div>':''}</div>`;
+  }catch(err){out.innerHTML=`<div class="err">${esc(err.message)}</div>`;}
+}
+async function askTutor(t){
+  const v=$('ask').value.trim(),out=$('askOut');if(!v)return;
+  out.innerHTML='<div class="load">Thinking…</div>';
+  try{
+    const sys=`You are a Vietnamese teacher. The learner is CEFR ${S.level} and is studying "${t.title}". Answer in ${S.lang}, briefly and clearly, in plain text without markdown, with one or two example sentences. ${FURI}`;
+    const a=await claude(sys,[{role:'user',content:v}],1200);
+    out.innerHTML=`<div class="fix good" style="margin-top:12px">${ruby(a.replace(/\*\*/g,''))}</div>`;
+  }catch(err){out.innerHTML=`<div class="err">${esc(err.message)}</div>`;}
+}
+
+/* ---------- conversation ---------- */
+let scene=null,hist=[],busy=false,lastHints=[];
+$('scenes').innerHTML=SCENES.map((s,i)=>`<button class="scene" data-scene="${i}"><b>${s[0]}</b><span>${s[1]}</span></button>`).join('');
+$('scenes').addEventListener('click',e=>{const b=e.target.closest('[data-scene]');if(b){const s=SCENES[+b.dataset.scene];startChat({jp:s[0],en:s[1],role:s[2]});}});
+$('customSceneGo').onclick=()=>{const v=$('customScene').value.trim();if(v)startChat({jp:"Tự chọn",en:v,role:v});};
+$('customScene').addEventListener('keydown',e=>{if(e.key==='Enter')$('customSceneGo').click()});
+$('leaveChat').onclick=()=>{vcStop();Ear.stop(true);$('chat').classList.add('hidden');$('scenePick').classList.remove('hidden');stopSpeak();};
+$('restartChat').onclick=()=>scene&&startChat(scene);
+$('autoSpeak').checked=S.auto;$('autoSpeak').onchange=e=>{S.auto=e.target.checked;save();};
+
+const TALK={"A1": "Use 1-2 short simple sentences with basic everyday words. Correct basic grammar (tone marks, classifiers, word order and forms of address); do not demand anything beyond A1.", "A2": "Use about 2 simple connected sentences about everyday life and the past. Correct grammar (tone marks, classifiers, word order and forms of address) and basic word choice.", "B1": "Use 2-3 natural everyday sentences. Also correct unnatural word choice and wrong politeness level.", "B2": "Use 2-3 connected sentences at natural adult level with common set phrases. Correct awkward phrasing, connector use and register.", "C1": "Use 2-4 sentences at natural adult level with abstract vocabulary, set expressions and formal register where it fits. Be strict: also correct collocations, register mismatches and nuance.", "C2": "Use 3-4 sophisticated, idiomatic sentences with nuanced opinions, thành ngữ and tục ngữ where they fit, and formal written or business register when the situation calls for it. Ask follow-up questions that require reasoning or opinion. Be very strict: accept only native-like phrasing, and correct nuance, collocation, register and style."};
+const THEMES=[['','General (no theme)'],
+ ['tax','Tax · Thuế','taxation: tax types, filing and payment, tax offices, compliance, audits, tax policy'],
+ ['economics','Economics · Kinh tế','economics: prices, jobs, trade, growth, finance, small businesses, development'],
+ ['politics','Politics · Chính trị','politics and government: elections, policy, public administration, international relations. Stay balanced and neutral, present several viewpoints and do not push your own political opinions'],
+ ['office','Office work · Văn phòng','office work: meetings, reports, emails, schedules, colleagues and bosses, business manners'],
+ ['ai','AI · Trí tuệ nhân tạo','artificial intelligence: AI tools, chatbots, automation, data, benefits and risks of AI at work and in society']];
+function themeLine(){
+  const t=THEMES.find(x=>x[0]===S.theme);if(!t||!t[0])return '';
+  return `\nTheme: ${t[2]}. Bring the content and vocabulary of the conversation to this theme while still playing your role in the situation. Keep it at the learner's level: at A1 and A2 use very simple sentences and introduce only one or two theme words per turn with easy explanations; at C1 and C2 use the real specialist vocabulary of the field. Make the hints use theme vocabulary too.`;
+}
+function chatSys(){
+  return `You are Cô giáo (cô), a warm, encouraging but exacting female Vietnamese teacher using the standard Hanoi (Northern) variety; she calls herself cô and the learner em, and mentions Southern variants when useful, giving a private conversation lesson through role-play.
+Learner level: CEFR ${scene.level} (${LEVELS.find(l=>l.id===scene.level).en}). Situation: ${scene.en}. In the role-play you act as: ${scene.role}
+How you speak: ${TALK[scene.level]}${themeLine()}
+Every turn you do two things, as a good teacher would:
+1. Correct the learner's LAST message in "feedback". ok is true only if it is correct and natural for the standard above. "corrected" is the fixed sentence in correct Vietnamese with all tone marks and diacritics (also when the learner typed without them). "note" explains each error briefly and kindly, and praises what was good. "natural" is a more natural or more advanced way to say the same thing; fill it in whenever one exists, even if ok is true, otherwise leave it empty. If the learner wrote in another language, show how to say it in Vietnamese in "corrected". For the opening turn feedback is null.
+2. Continue the role-play in "jp", staying in your role and ending in a way that invites a reply.
+- ${FURI}
+- Write "tr", "feedback.note" and hint translations in ${S.lang}.
+- hints are 2 different things the learner could say next, at their level.${VC.on?'\n- This is a spoken lesson: the learner talks and your "jp" line is read aloud to them. Their text comes from speech recognition, so ignore missing punctuation, capital letters and tone-mark slips caused by recognition. If their last message had a real mistake, begin "jp" by gently saying the correct phrase in one short sentence, then continue the conversation.':''}
+Respond ONLY with one valid JSON object:
+{"feedback":{"ok":true,"corrected":"","natural":"","note":""},"jp":"your Vietnamese line","romaji":"","tr":"","hints":[{"jp":"Vietnamese","tr":""},{"jp":"","tr":""}]}`;
+}
+function startChat(s){
+  Ear.stop(true);clearTimeout(VC.timer);
+  scene={...s,level:S.level};hist=[];lastHints=[];
+  $('scenePick').classList.add('hidden');$('chat').classList.remove('hidden');
+  $('chatTitle').textContent=s.jp;$('chatLv').textContent=s.en;
+  $('msgs').innerHTML='';$('hints').innerHTML='';
+  turn('[Begin the role-play with your opening line.]',true);
+}
+function addMsg(html,me){
+  const d=document.createElement('div');d.className='m'+(me?' me':'');d.innerHTML=html;
+  $('msgs').appendChild(d);$('msgs').scrollTop=$('msgs').scrollHeight;return d;
+}
+async function turn(text,opening){
+  if(busy)return;busy=true;$('sendBtn').disabled=true;$('hints').innerHTML='';
+  let mine=null,spoken=null;
+  if(!opening)mine=addMsg(`<div class="bub"><div class="jp">${esc(text)}</div></div>`,true);
+  const wait=addMsg('<div class="load" style="padding:4px 0">…</div>');
+  const msgs=[...hist,{role:'user',content:text}];
+  try{
+    const raw=await claude(chatSys(),msgs,1800);
+    let d;try{d=asJSON(raw)}catch(e){d={jp:raw,romaji:'',tr:'',feedback:null,hints:[]}}
+    hist=[...msgs,{role:'assistant',content:raw}];
+    if(mine&&d.feedback){
+      const f=d.feedback,el=document.createElement('div');
+      el.className='fix '+(f.ok?'good':'');
+      const better=f.natural?`<div class="small" style="margin-top:6px">${f.ok?'Even better':'More natural'}:</div><div class="jp">${ruby(f.natural)} <button class="mini" data-say="${esc(f.natural)}">🔊</button></div>`:'';
+      el.innerHTML=f.ok
+        ?`<b>Cô giáo: giỏi lắm!</b><div>${ruby(f.note||'')}</div>${better}`
+        :`<b class="pen">Cô giáo sửa (correction)</b><div class="jp">${ruby(f.corrected)} <button class="mini" data-say="${esc(f.corrected)}">🔊</button></div><div>${ruby(f.note||'')}</div>${better}`;
+      mine.appendChild(el);
+    }
+    wait.innerHTML=`<div class="bub"><div class="jp">${ruby(d.jp)}</div><div class="romaji">${esc(d.romaji)}</div><div class="tr">${esc(d.tr)}</div></div><div class="tools"><button class="mini" data-say="${esc(d.jp)}">🔊 Listen</button></div>`;
+    lastHints=d.hints||[];
+    spoken=d.jp;
+  }catch(err){
+    wait.innerHTML=`<div class="err">${esc(err.message)}</div>`;
+    vcStop();
+    if(mine){mine.remove();$('say').value=text;}
+  }
+  busy=false;$('sendBtn').disabled=false;$('msgs').scrollTop=$('msgs').scrollHeight;
+  if(spoken){
+    if(VC.on){vcShow('Cô giáo is speaking…');speak(spoken,vcListen);}
+    else if(S.auto)speak(spoken);
+  }
+}
+function send(){
+  clearTimeout(VC.timer);
+  const v=$('say').value.trim();if(!v||busy||!scene)return;
+  Ear.stop(true);if(VC.on)vcShow('Cô giáo is thinking…');
+  $('say').value='';turn(v);
+}
+$('sendBtn').onclick=send;
+$('say').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send();}});
+$('hintBtn').onclick=()=>{
+  const h=$('hints');
+  if(h.innerHTML){h.innerHTML='';return;}
+  h.innerHTML=lastHints.length?lastHints.map((x,i)=>`<button class="hint" data-hint="${i}"><div class="jp">${ruby(x.jp)}</div><div class="small">${esc(x.tr)}</div></button>`).join(''):'<div class="small">No hints yet. Wait for your partner\'s next line.</div>';
+};
+$('hints').addEventListener('click',e=>{const b=e.target.closest('[data-hint]');if(b){$('say').value=plain(lastHints[+b.dataset.hint].jp);$('hints').innerHTML='';$('say').focus();}});
+
+/* microphone */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const MIC_ERR={
+ 'not-allowed':'The microphone is blocked for this page. Click the icon at the left of the address bar and allow the microphone. If you opened the file by double-click, open it through http://localhost instead (see the note in Settings).',
+ 'service-not-allowed':'Speech recognition is not allowed here. Open the page through http://localhost or https in Chrome or Edge.',
+ 'network':'Speech recognition needs an internet connection and may be blocked on this network.',
+ 'no-speech':'Nothing was heard. Click the microphone and speak right away.',
+ 'audio-capture':'No microphone was found. Check that one is connected and enabled.',
+ 'language-not-supported':'This browser cannot recognise Vietnamese speech. Try Chrome.'};
+const IS_ANDROID_WEB=/Android/i.test(navigator.userAgent);
+/* Ear keeps listening until it is told to stop: recognisers end by themselves after a short
+   pause, so each time one ends it is opened again and the text so far is kept. */
+const Ear={on:false,sid:0,acc:'',cur:'',cb:null,ui:null,auto:null,r:null,empty:0,
+  start(cb,ui,auto){
+    this.stop(true);
+    if(!window.AndroidBridge&&!SR){toast('This browser has no speech recognition. Use Chrome or Edge on a PC or Android.');return false;}
+    this.on=true;this.acc='';this.cur='';this.empty=0;this.cb=cb;this.ui=ui;this.auto=auto;
+    stopSpeak();if(ui)ui(true);this._open();return true;
+  },
+  stop(drop){
+    const was=this.on;this.on=false;
+    if(drop){this.sid++;this.cb=null;}
+    if(window.AndroidBridge){if(was)AndroidBridge.stopListening();}
+    else if(this.r){try{this.r.stop();}catch(e){}}
+    if(was&&this.ui)this.ui(false);
+  },
+  _fail(msg){ /* stopped by itself */
+    if(!this.on)return;this.on=false;if(msg)toast(msg);
+    if(this.ui)this.ui(false);if(this.auto)this.auto();
+  },
+  _ended(){
+    if(!this.on)return;
+    if(this.cur)this.empty=0;else this.empty++;
+    this.acc+=this.cur;this.cur='';
+    if(this.empty>=8){this._fail('The microphone turned off after a long silence. Tap it to start again.');return;}
+    const my=this.sid;setTimeout(()=>{if(this.on&&my===this.sid)this._open();},300);
+  },
+  _open(){
+    const my=this.sid;
+    const got=t=>{if(my!==this.sid||!this.cb)return;this.cur=t;this.cb(this.acc+this.cur);};
+    if(window.AndroidBridge){ /* Android app: native speech recognition */
+      window.__micResult=got;
+      window.__micError=m=>{if(my===this.sid)this._fail(m);};
+      window.__micEnd=()=>{if(my===this.sid)this._ended();};
+      AndroidBridge.startListening();return;
+    }
+    const r=new SR();this.r=r;r.lang='vi-VN';r.interimResults=true;r.continuous=!IS_ANDROID_WEB;
+    r.onresult=e=>{let t='';for(const x of e.results)t+=x[0].transcript;got(t);};
+    r.onerror=e=>{if(e.error==='no-speech'||e.error==='aborted')return;if(my===this.sid)this._fail(MIC_ERR[e.error]||('Microphone error: '+e.error));};
+    r.onend=()=>{if(this.r===r)this.r=null;if(my===this.sid)this._ended();};
+    try{r.start();}catch(err){this._fail('Could not start the microphone: '+err.message);}
+  }};
+const micUI=on=>$('mic').classList.toggle('live',on);
+$('mic').onclick=()=>{
+  if(VC.on){toast('Voice talk is on. Tap "End voice talk" to use the mic by hand.');return;}
+  if(Ear.on){Ear.stop();return;}
+  const base=$('say').value.trim();
+  if(Ear.start(t=>{$('say').value=(base+' '+t).trim();},micUI))toast('Listening… tap the mic again when you finish.');
+};
+
+/* voice talk: the teacher speaks, then the mic opens; a pause after you speak sends your words */
+const VC={on:false,timer:null,PAUSE:2500};
+function vcShow(msg){
+  $('vcBar').classList.toggle('hidden',!VC.on);$('vcMsg').textContent=msg||'';
+  $('vcBtn').setAttribute('aria-pressed',VC.on);$('vcBtn').textContent=VC.on?'🎙 Voice talk is on':'🎙 Voice talk';
+}
+function vcSupported(){
+  if(window.AndroidBridge||SR)return true;
+  toast('Voice talk needs speech recognition. Use Chrome or Edge on a PC or Android.');return false;
+}
+function vcStart(){
+  if(!scene||!vcSupported())return;
+  VC.on=true;Ear.stop(true);
+  if(busy)vcShow('Cô giáo is thinking…');else vcListen();
+}
+function vcStop(){
+  if(!VC.on)return;
+  VC.on=false;clearTimeout(VC.timer);Ear.stop(true);stopSpeak();vcShow('');
+}
+function vcListen(){
+  if(!VC.on||busy)return;
+  $('say').value='';vcShow('Listening… speak Vietnamese, then pause.');
+  Ear.start(t=>{
+    $('say').value=t;clearTimeout(VC.timer);
+    if(t.trim())VC.timer=setTimeout(send,VC.PAUSE);
+  },micUI,()=>vcStop());
+}
+$('vcBtn').onclick=()=>{if(VC.on)vcStop();else vcStart();};
+$('vcEnd').onclick=vcStop;
+$('vcFree').onclick=()=>{
+  if(!vcSupported())return;
+  const s=SCENES[SCENES.length-1];
+  VC.on=true;startChat({jp:s[0],en:s[1],role:s[2]});vcShow('Cô giáo is thinking…');
+};
+
+/* ---------- settings ---------- */
+function openSet(){
+  $('sKey').value=S.key;
+  const known=[...$('sModel').options].some(o=>o.value===S.model);
+  $('sModel').value=known?S.model:'custom';$('sModelCustom').value=known?'':S.model;
+  $('sModelCustom').classList.toggle('hidden',known);
+  $('sLang').value=S.lang;$('sRate').value=S.rate;$('sRateV').textContent=S.rate+'×';
+  if(!$('dlg').open)$('dlg').showModal();
+}
+$('openSet').onclick=openSet;
+$('closeSet').onclick=()=>$('dlg').close();
+$('sModel').onchange=e=>$('sModelCustom').classList.toggle('hidden',e.target.value!=='custom');
+$('testVoice').onclick=()=>{S.rate=+$('sRate').value;speak("Xin chào! Chúng ta bắt đầu học tiếng Việt nhé.");};
+$('sRate').oninput=e=>$('sRateV').textContent=e.target.value+'×';
+$('saveSet').onclick=()=>{
+  S.key=$('sKey').value.trim();
+  S.model=$('sModel').value==='custom'?($('sModelCustom').value.trim()||S.model):$('sModel').value;
+  S.lang=$('sLang').value;S.rate=+$('sRate').value;save();$('dlg').close();
+};
+$('resetAll').onclick=()=>{if(confirm('Clear learned lessons and saved lesson texts? Your settings stay.')){S.done={};S.cache={};save();drawTopics();showEmpty();$('dlg').close();}};
+
+document.querySelectorAll('.lvSel').forEach(x=>{
+  x.innerHTML=LEVELS.map(l=>`<option value="${l.id}">${l.jp} ${l.en} (${l.id})</option>`).join('');
+  x.value=S.level;x.onchange=()=>setLevel(x.value);
+});
+
+S.theme='';
+document.querySelectorAll('.thSel').forEach(x=>{
+  x.innerHTML=THEMES.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join('');
+  x.value=S.theme;
+  x.onchange=()=>{S.theme=x.value;save();document.querySelectorAll('.thSel').forEach(y=>y.value=S.theme);};
+});
+
+/* ---------- themes: vocabulary and model conversations ---------- */
+let vMode='vocab',vBusy=false;
+const VT=THEMES.filter(t=>t[0]);
+if(!VT.some(t=>t[0]===S.vtheme))S.vtheme='tax';
+const vT=()=>VT.find(t=>t[0]===S.vtheme);
+const vKey=()=>'v|'+S.vtheme+'|'+S.level+'|'+S.lang;
+const dKey=()=>'d|'+S.vtheme+'|'+S.level+'|'+S.lang;
+function wordHTML(w){return `<div class="ex"><div class="jp">${ruby(w.word)}</div><button class="say" data-say="${esc(w.word+'. '+(w.ex||''))}" title="Listen">🔊</button><div class="romaji">${esc(w.romaji)}</div><div class="tr"><b>${esc(w.meaning)}</b></div><div class="jp" style="font-size:1.05rem;line-height:1.9;grid-column:1/-1">${ruby(w.ex)}</div><div class="tr small" style="grid-column:1/-1">${esc(w.ex_tr)}</div></div>`}
+function drawTheme(msg){
+  $('vThemes').innerHTML=VT.map(t=>`<button class="tab" data-vt="${t[0]}" aria-selected="${t[0]===S.vtheme}">${t[1]}</button>`).join('');
+  document.querySelectorAll('[data-vm]').forEach(b=>b.setAttribute('aria-selected',b.dataset.vm===vMode));
+  const head=`<h2>${esc(vT()[1])}</h2><p class="meaning">${lv().en} (${S.level}) ${vMode==='vocab'?'vocabulary':'model conversation'}</p>${msg||''}`;
+  if(vMode==='vocab'){
+    const w=S.cache[vKey()]||[];
+    $('vOut').innerHTML=head+(w.length
+      ?w.map(wordHTML).join('')+`<div class="acts"><button class="btn red" id="vRand">Get 12 random words</button><button class="btn" id="vMore">Add 12 more to this list</button><button class="btn alt" id="vQuiz">Quiz me on these ${w.length} words</button></div><div id="vQuizOut"></div>`
+      :`<div class="empty" style="padding:30px 10px"><p>No words loaded for this theme and level yet.</p><button class="btn red" id="vRand">Get 12 random words</button></div>`);
+  }else{
+    const d=S.cache[dKey()];
+    $('vOut').innerHTML=head+`<div class="row" style="margin:12px 0 4px"><input type="text" id="vTopic" placeholder="Write a topic in English, e.g. asking the tax office about a late VAT return"><button class="btn red" id="vTopicGo">Generate</button></div><div class="small">Or leave it empty and let Cô giáo choose a topic.</div>`+(d
+      ?`<h3>${ruby(d.title)} <span class="tr small">${esc(d.title_tr)}</span></h3><p>${esc(d.situation)}</p>`
+        +(d.lines||[]).map(l=>`<div class="ex"><div class="jp"><b style="font-size:.8em;color:var(--red)">${esc(l.who)}</b>　${ruby(l.jp)}</div><button class="say" data-say="${esc(l.jp)}" title="Listen">🔊</button><div class="romaji">${esc(l.romaji)}</div><div class="tr">${esc(l.tr)}</div></div>`).join('')
+        +((d.phrases||[]).length?`<h3>Key phrases</h3>`+d.phrases.map(x=>`<div class="ex"><div class="jp" style="font-size:1.1rem;line-height:1.9">${ruby(x.jp)}</div><button class="say" data-say="${esc(x.jp)}">🔊</button><div class="tr">${esc(x.tr)}</div></div>`).join(''):'')
+        +`<div class="acts"><button class="btn alt" id="vPlay">🔊 Play whole conversation</button><button class="btn red" id="vPractice">Practise this with Cô giáo</button><button class="btn" id="vNewDlg">Another conversation (Cô giáo chooses)</button></div>`
+      :`<div class="empty" style="padding:30px 10px"><p>No conversation loaded for this theme and level yet.</p><button class="btn" id="vNewDlg">Let Cô giáo choose a topic</button></div>`);
+  }
+}
+async function vLoad(kind,topic){
+  const rand=kind==='rand';if(rand)kind='vocab';
+  if(vBusy)return;vBusy=true;
+  const key=kind==='vocab'?vKey():dKey(),t=vT(),level=S.level;
+  $('vOut').insertAdjacentHTML('beforeend',`<div class="load">${kind==='vocab'?'Collecting words…':'Writing a conversation…'}</div>`);
+  $('vOut').lastElementChild.scrollIntoView({block:'nearest'});
+  let msg='';
+  try{
+    const sys=`You are a Vietnamese teacher preparing themed study material for a CEFR ${level} (${lv().en}) learner. Meanings, translations and descriptions are in ${S.lang}. ${FURI} Respond ONLY with one valid JSON object.`;
+    if(kind==='vocab'){
+      const seen=S.cache[key+'|seen']||[];
+      const have=rand?seen:(S.cache[key]||[]).map(w=>plain(w.word));
+      const usr=`Theme: ${t[2]}.
+Give 12 useful Vietnamese words or short set phrases for this theme that suit a ${level} learner (A1 and A2: the most basic everyday words of the field; B1 and B2: common news and workplace words; C1 and C2: specialist and formal terms). Give the classifier for nouns where one is used. Each example sentence must use grammar no harder than ${level}.${rand?' Pick them at random from many different corners of the theme, not only the most obvious words (random seed '+Math.floor(Math.random()*100000)+').':''}${have.length?' Do not repeat any of: '+have.join(', ')+'.':''}
+JSON: {"words":[{"word":"thuế","romaji":"","meaning":"","ex":"example sentence","ex_tr":"translation of the example"}]}`;
+      const d=asJSON(await claude(sys,[{role:'user',content:usr}],3500));
+      S.cache[key]=rand?(d.words||[]):[...(S.cache[key]||[]),...(d.words||[])];
+      S.cache[key+'|seen']=[...new Set([...seen,...(d.words||[]).map(w=>plain(w.word))])].slice(-150);
+    }else{
+      const past=S.cache[key+'|t']||[];
+      const usr=`Theme: ${t[2]}.
+Write a realistic model conversation of 8 to 10 lines between two people with Vietnamese names, ${topic?'about exactly this topic given by the learner: "'+topic+'" (treat the theme as background; the learner\'s topic comes first)':'on one specific topic inside this theme'}, at CEFR ${level} (A1 and A2: short simple sentences; B1 and B2: natural everyday speech; C1 and C2: natural adult speech with the field's real terms and formal register where it fits).${!topic&&past.length?' Choose a topic different from: '+past.join(', ')+'.':''} Then list 5 key phrases from it worth memorising.
+JSON: {"title":"Vietnamese title","title_tr":"","situation":"one sentence describing who is talking and why","lines":[{"who":"name","jp":"Vietnamese line","romaji":"","tr":""}],"phrases":[{"jp":"Vietnamese","tr":""}]}`;
+      const d=asJSON(await claude(sys,[{role:'user',content:usr}],3500));
+      S.cache[key]=d;S.cache[key+'|t']=[...past,plain(d.title)].slice(-12);
+    }
+    save();
+  }catch(err){msg=`<div class="err">${esc(err.message)}</div>`;}
+  vBusy=false;drawTheme(msg);
+}
+function vQuiz(){
+  const all=S.cache[vKey()]||[],sh=a=>[...a].sort(()=>Math.random()-.5);
+  const qs=sh(all).slice(0,8).map(w=>{
+    const opts=sh([w,...sh(all.filter(x=>x.meaning!==w.meaning)).slice(0,3)]);
+    return {w,opts,answer:opts.indexOf(w)};});
+  let right=0,done=0;const q=$('vQuizOut');
+  q.innerHTML='<h3>Vocabulary quiz</h3>'+qs.map((x,i)=>`<div class="q" data-q="${i}"><div class="jp">${i+1}. ${ruby(x.w.word)} <button class="mini" data-say="${esc(x.w.word)}">🔊</button></div>${x.opts.map((o,j)=>`<button class="opt" data-o="${j}" style="font-family:var(--ui);font-size:1rem">${esc(o.meaning)}</button>`).join('')}</div>`).join('')+'<div id="vEnd"></div>';
+  q.onclick=e=>{
+    const o=e.target.closest('.opt');if(!o||o.disabled)return;
+    const box=o.closest('.q'),x=qs[+box.dataset.q];
+    box.querySelectorAll('.opt').forEach((b,j)=>{b.disabled=true;if(j===x.answer)b.classList.add('right')});
+    if(+o.dataset.o===x.answer)right++;else o.classList.add('wrong');
+    if(++done===qs.length){$('vEnd').innerHTML=`<p class="score">${right} / ${qs.length}</p><button class="btn alt" id="vQuiz">Quiz again</button>`;}
+  };
+  q.scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('themes').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.vt){S.vtheme=b.dataset.vt;save();drawTheme();}
+  else if(b.dataset.vm){vMode=b.dataset.vm;drawTheme();}
+  else if(b.id==='vMore')vLoad('vocab');
+  else if(b.id==='vRand')vLoad('rand');
+  else if(b.id==='vTopicGo'){const v=$('vTopic').value.trim();if(v)vLoad('dlg',v);else $('vTopic').focus();}
+  else if(b.id==='vNewDlg')vLoad('dlg');
+  else if(b.id==='vQuiz')vQuiz();
+  else if(b.id==='vPlay'){const d=S.cache[dKey()];if(d)speak(d.lines.map(l=>plain(l.jp)).join(' '));}
+  else if(b.id==='vPractice'){
+    const d=S.cache[dKey()];if(!d)return;
+    document.querySelector('[data-tab=talk]').click();
+    startChat({jp:plain(d.title),en:d.title_tr||d.situation,role:'the other person in this situation: '+d.situation+' Build on the vocabulary and key phrases of a model conversation titled "'+plain(d.title)+'", but hold a fresh conversation and do not recite it.'});
+  }
+});
+
+$('themes').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='vTopic'){e.preventDefault();$('vTopicGo').click();}});
+
+window.__toast=m=>toast(m);
+
+/* ---------- start ---------- */
+drawLevels();applyToggles();drawTopics();showEmpty();drawTheme();
+</script>
+</body>
+</html>
